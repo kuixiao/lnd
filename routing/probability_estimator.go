@@ -58,6 +58,10 @@ func (p *probabilityEstimator) getNodeProbability(now time.Time,
 	// the weighted average calculation below. When the apriori weight
 	// approaches 1, the apriori factor goes to infinity. It will heavily
 	// outweigh any observations that have been collected.
+	// apriori权重的值在[0，1]范围内。将其转换为一个因子，在下面的加权平均
+	// 计算中正确表达权重的意图。当先验权重为0时，先验因子也为0。这意味着它
+	// 不会对下面的加权平均计算产生任何影响。当先验权重接近1时，先验因子趋于
+	// 无穷大。它将大大超过任何已收集到的观察结果。
 	aprioriFactor := 1/(1-p.aprioriWeight) - 1
 
 	// Calculate a weighted average consisting of the apriori probability
@@ -76,6 +80,13 @@ func (p *probabilityEstimator) getNodeProbability(now time.Time,
 	// effectively prunes all channels of the node forever. This is the most
 	// aggressive way in which we can penalize nodes and unlikely to yield
 	// good results in a real network.
+	// 计算由先验概率和历史观测值组成的加权平均值。这是激励节点确保其所有（而不仅仅是部分）
+	// 通道处于良好状态的部分。发送方将绕过显示出一些故障的节点，即使可能还有许多通道尚未测试。
+	//
+	// 如果只有一个观测值，且先验权重为0，则该观测值将完全决定节点概率。返回节点的所有其他通道的节点概率。
+	// 这意味着一个失败将导致所有其他通道的成功概率估计值也为0。尝试的信道的概率甚至不会恢复，因为它正在
+	// 恢复到节点概率（为零）。因此，一次失败将永远有效地修剪节点的所有通道。这是最激进的方式，我们可以惩
+	// 罚节点，不太可能产生良好的结果，在一个真正的网络。
 	probabilitiesTotal := p.aprioriHopProbability * aprioriFactor
 	totalWeight := aprioriFactor
 

@@ -60,6 +60,15 @@ const (
 // NodeResults contains previous results from a node to its peers.
 type NodeResults map[route.Vertex]TimedPairResult
 
+type RoutesResult struct {
+	// 清除过期(time.Now - createTime > expiry)缓存
+	lastUpdateTime	time.Time
+	// totalAmt = sum(routes.TotalAmount)包含fee
+	totalAmt lnwire.MilliSatoshi
+	// selfNode->targetNode的路由集
+	routes		[]route.Route
+}
+
 // MissionControl contains state which summarizes the past attempts of HTLC
 // routing by external callers when sending payments throughout the network. It
 // acts as a shared memory during routing attempts with the goal to optimize the
@@ -81,6 +90,9 @@ type MissionControl struct {
 	cfg *MissionControlConfig
 
 	store *missionControlStore
+
+	// add routesCache for pathFind
+	routesCache map[route.Vertex] RoutesResult
 
 	// estimator is the probability estimator that is used with the payment
 	// results that mission control collects.
@@ -370,6 +382,11 @@ func (m *MissionControl) applyPaymentResult(
 		result.route, result.success, result.failureSourceIdx,
 		result.failure,
 	)
+	// init routesCache with result if result.success is true
+	if result.success{
+		m.applyPaymentResultForCache(result)
+	}
+
 
 	// Update mission control state using the interpretation.
 	m.Lock()
@@ -428,3 +445,51 @@ func (m *MissionControl) applyPaymentResult(
 
 	return i.finalFailureReason
 }
+
+// applyPaymentResultForCache applies the payment result as input to update RoutesCache
+func (m *MissionControl) applyPaymentResultForCache(
+	result *paymentResult) error {
+	hops := result.route.Hops
+	var curRoute route.Route
+	// 遍历每一hop
+	for hopIndex, hop := range hops {
+		if hopIndex == 0 {
+			curRoute = route.Route{
+				TotalTimeLock:hop.OutgoingTimeLock,
+				TotalAmount:result.route.TotalAmount,
+				SourcePubKey:result.route.SourcePubKey,
+			}
+			curRoute.Hops = append(curRoute.Hops, hop)
+			continue
+		}
+		target := hop.PubKeyBytes // 当前目标节点
+		curRoute.Hops = append(curRoute.Hops, hop)
+		curRoute.TotalTimeLock += hop.OutgoingTimeLock
+
+		// 若已有到该目标节点的路由缓存记录，则对其进行更新，否则进行添加。
+		if routesResult, ok := m.routesCache[target]; ok {
+			// 查找curRoute是否已缓存
+			routeIndex, sameRoute := curRoute.CompareHops(routesResult.routes)
+			// 当前curRoute已缓存,则更新为支付额较大的路由
+			if sameRoute {
+				if routesResult.routes[routeIndex].TotalAmount < curRoute.TotalAmount {
+					routesResult.routes[routeIndex].TotalAmount = curRoute.TotalAmount
+					routesResult.routes[routeIndex].TotalTimeLock = curRoute.TotalTimeLock
+					routesResult.lastUpdateTime = time.Now()
+					routesResult.totalAmt = routesResult.totalAmt + curRoute.TotalAmount -
+											routesResult.routes[routeIndex].TotalAmount
+					m.routesCache[target] = routesResult
+				}
+			}
+		} else {
+			routesResult = RoutesResult{
+				lastUpdateTime:time.Now(),
+				totalAmt:curRoute.TotalAmount,
+			}
+			routesResult.routes = append(routesResult.routes, curRoute)
+			m.routesCache[target] = routesResult
+		}
+	}
+	return nil
+}
+

@@ -316,6 +316,18 @@ func (r *Route) Copy() *Route {
 	return &c
 }
 
+// Copy returns a deep copy of the Route of .
+func (r *Route) CopyHopsOfRoute(hopIndex int) *Route {
+	c := *r
+
+	c.Hops = make([]*Hop, len(r.Hops))
+	for i := 0; i < hopIndex; i++{
+		c.Hops[i] = r.Hops[i].Copy()
+	}
+
+	return &c
+}
+
 // HopFee returns the fee charged by the route hop indicated by hopIndex.
 func (r *Route) HopFee(hopIndex int) lnwire.MilliSatoshi {
 	var incomingAmt lnwire.MilliSatoshi
@@ -489,4 +501,19 @@ func (r *Route) String() string {
 	return fmt.Sprintf("%v, cltv %v",
 		b.String(), r.TotalTimeLock,
 	)
+}
+
+
+func (r *Route) CompareHops(routes []Route) (int, bool) {
+	for routeIndex, route := range routes {
+		if len(r.Hops) != len(route.Hops) {
+			continue
+		}
+		for i := 0; i < len(r.Hops); i++ {
+			if r.Hops[i].PubKeyBytes == route.Hops[i].PubKeyBytes && i == len(r.Hops){
+				return routeIndex, true
+			}
+		}
+	}
+	return -1, false
 }

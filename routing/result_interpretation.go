@@ -60,6 +60,9 @@ type interpretedResult struct {
 	// responsible for the result.
 	nodeFailure *route.Vertex
 
+	// target node
+	target *route.Vertex
+
 	// pairResults contains a map of node pairs for which we have a result.
 	pairResults map[DirectedNodePair]pairResult
 
@@ -469,7 +472,6 @@ func (i *interpretedResult) successPairRange(
 
 	for idx := fromIdx; idx <= toIdx; idx++ {
 		pair, amt := getPair(rt, idx)
-
 		i.pairResults[pair] = successPairResult(amt)
 	}
 }

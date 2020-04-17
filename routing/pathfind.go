@@ -246,8 +246,10 @@ func edgeWeight(lockedAmt lnwire.MilliSatoshi, fee lnwire.MilliSatoshi,
 	// It is controlled by RiskFactorBillionths and scales proportional
 	// to the amount that will pass through channel. Rationale is that it if
 	// a twice as large amount gets locked up, it is twice as bad.
+	// TimeLockPension是此通道的时间锁定增量的惩罚。它由RiskFactorBillionths控制，其比例与通过通道的金额成正比。
+	// 理由是，如果一个两倍大的数额被锁定，它是两倍坏。
 	timeLockPenalty := int64(lockedAmt) * int64(timeLockDelta) *
-		RiskFactorBillionths / 1000000000
+		RiskFactorBillionths / 1000000000 // RiskFactorBillionths = 15
 
 	return int64(fee) + timeLockPenalty
 }
@@ -536,6 +538,7 @@ func findPath(g *graphParams, r *RestrictParams, cfg *PathFindingConfig,
 		amountToSend := toNodeDist.amountToReceive
 
 		// Request the success probability for this edge.
+		// processEdge(fromNode, fromFeatures, policy, partialPath)
 		edgeProbability := r.ProbabilitySource(
 			fromVertex, toNodeDist.node, amountToSend,
 		)
@@ -617,7 +620,7 @@ func findPath(g *graphParams, r *RestrictParams, cfg *PathFindingConfig,
 		// probability.
 		tempDist := getProbabilityBasedDist(
 			tempWeight, probability,
-			int64(cfg.PaymentAttemptPenalty),
+			int64(cfg.PaymentAttemptPenalty),// PaymentAttemptPenalty = 100
 		)
 
 		// If there is already a best route stored, compare this
@@ -682,11 +685,11 @@ func findPath(g *graphParams, r *RestrictParams, cfg *PathFindingConfig,
 		// map is populated with this edge.
 		withDist := &nodeWithDist{
 			dist:            tempDist,
-			weight:          tempWeight,
+			weight:          tempWeight, // 累加
 			node:            fromVertex,
 			amountToReceive: amountToReceive,
 			incomingCltv:    incomingCltv,
-			probability:     probability,
+			probability:     probability,// 累乘
 			nextHop:         edge,
 			routingInfoSize: routingInfoSize,
 		}
