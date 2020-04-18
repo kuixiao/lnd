@@ -98,6 +98,13 @@ type ChannelUpdate struct {
 	// HtlcMinimumMsat is the minimum HTLC value which will be accepted.
 	HtlcMinimumMsat MilliSatoshi
 
+	/* ---------------------------------------------------------------------------*/
+	// Probalbility is the successful probalbility of the channel, which is
+	// used for route seletion. It is calculated based on the capacity, the
+	// BaseFee and so on.
+	Probalbility float64
+	/* --------------------------------------------------------------------------- */
+
 	// BaseFee is the base fee that must be used for incoming HTLC's to
 	// this particular channel. This value will be tacked onto the required
 	// for a payment independent of the size of the payment.

@@ -113,6 +113,7 @@ func messageStoreKey(msg lnwire.Message, peerPubKey [33]byte) ([]byte, error) {
 // AddMessage adds a message to the store for this peer.
 func (s *MessageStore) AddMessage(msg lnwire.Message, peerPubKey [33]byte) error {
 	// Construct the key for which we'll find this message with in the store.
+	// msgKey = peerPubKey + channelID + msg.Type()
 	msgKey, err := messageStoreKey(msg, peerPubKey)
 	if err != nil {
 		return err

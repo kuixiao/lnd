@@ -578,6 +578,13 @@ type OpenChannel struct {
 	// Capacity is the total capacity of this channel.
 	Capacity btcutil.Amount
 
+	/* ---------------------------------------------------------------------------*/
+	// Probalbility is the successful probalbility of the channel, which is
+	// used for route seletion. It is calculated based on the capacity, the
+	// BaseFee and so on.
+	Probalbility float64
+	/* --------------------------------------------------------------------------- */
+
 	// TotalMSatSent is the total number of milli-satoshis we've sent
 	// within this channel.
 	TotalMSatSent lnwire.MilliSatoshi
@@ -679,6 +686,13 @@ func (c *OpenChannel) ChanStatus() ChannelStatus {
 	defer c.RUnlock()
 
 	return c.chanStatus
+}
+
+
+// 初始化通道概率
+func (c *OpenChannel) InitChanProbability() (float64,error) {
+
+	return 1.0, nil
 }
 
 // ApplyChanStatus allows the caller to modify the internal channel state in a

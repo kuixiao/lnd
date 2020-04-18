@@ -1208,7 +1208,7 @@ func (f *fundingManager) handleFundingOpen(fmsg *fundingOpenMsg) {
 
 	// We'll reject any request to create a channel that's above the
 	// current soft-limit for channel size.
-	if msg.FundingAmount > MaxFundingAmount {
+	if amt > MaxFundingAmount {
 		f.failFundingFlow(
 			fmsg.peer, fmsg.msg.PendingChannelID,
 			lnwire.ErrChanTooLarge,

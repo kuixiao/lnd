@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -382,11 +383,12 @@ func (m *MissionControl) applyPaymentResult(
 		result.route, result.success, result.failureSourceIdx,
 		result.failure,
 	)
+	/* ------------------------------------------------------------- */
 	// init routesCache with result if result.success is true
 	if result.success{
 		m.applyPaymentResultForCache(result)
 	}
-
+	/* ------------------------------------------------------------- */
 
 	// Update mission control state using the interpretation.
 	m.Lock()
@@ -493,3 +495,15 @@ func (m *MissionControl) applyPaymentResultForCache(
 	return nil
 }
 
+/* ------------------------------------------------------------------- */
+// 返回指定target的路由集缓存
+func (m *MissionControl) GetRoutesCacheOfTarget(target route.Vertex) (*RoutesResult, error) {
+	if routesResult, ok := m.routesCache[target]; ok {
+		return &routesResult, nil
+	}
+	return nil, errors.New("no record of target in routesCache")
+}
+
+
+
+/* ------------------------------------------------------------------- */

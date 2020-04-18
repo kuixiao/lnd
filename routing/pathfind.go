@@ -242,6 +242,7 @@ func newRoute(sourceVertex route.Vertex,
 // currently a fixed value, but might be configurable in the future.
 func edgeWeight(lockedAmt lnwire.MilliSatoshi, fee lnwire.MilliSatoshi,
 	timeLockDelta uint16) int64 {
+	// amountToReceive, fee, timeLockDelta
 	// timeLockPenalty is the penalty for the time lock delta of this channel.
 	// It is controlled by RiskFactorBillionths and scales proportional
 	// to the amount that will pass through channel. Rationale is that it if

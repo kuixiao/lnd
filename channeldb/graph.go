@@ -2798,6 +2798,13 @@ type ChannelEdgePolicy struct {
 	// HTLCs for each millionth of a satoshi forwarded.
 	FeeProportionalMillionths lnwire.MilliSatoshi
 
+	/* ---------------------------------------------------------------------------*/
+	// Probalbility is the successful probalbility of the channel, which is
+	// used for route seletion. It is calculated based on the capacity, the
+	// BaseFee and so on.
+	Probalbility float64
+	/* --------------------------------------------------------------------------- */
+
 	// Node is the LightningNode that this directed edge leads to. Using
 	// this pointer the channel graph can further be traversed.
 	Node *LightningNode
@@ -3748,6 +3755,7 @@ func putChanEdgePolicy(edges, nodes kvdb.RwBucket, edge *ChannelEdgePolicy,
 	// delete the old one to ensure we don't leave around any after-images.
 	// An unknown policy value does not have a update time recorded, so
 	// it also does not need to be removed.
+	// edgeKey = fromNode + ChannelID
 	if edgeBytes := edges.Get(edgeKey[:]); edgeBytes != nil &&
 		!bytes.Equal(edgeBytes[:], unknownPolicy) {
 
@@ -3949,6 +3957,9 @@ func serializeChanEdgePolicy(w io.Writer, edge *ChannelEdgePolicy,
 		return err
 	}
 	if err := binary.Write(w, byteOrder, uint64(edge.FeeProportionalMillionths)); err != nil {
+		return err
+	}
+	if err := binary.Write(w, byteOrder, edge.Probalbility); err != nil {
 		return err
 	}
 

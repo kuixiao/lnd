@@ -503,7 +503,8 @@ func (r *Route) String() string {
 	)
 }
 
-
+/* ------------------------------------------------------------------- */
+// 比较当前route是否在routes中
 func (r *Route) CompareHops(routes []Route) (int, bool) {
 	for routeIndex, route := range routes {
 		if len(r.Hops) != len(route.Hops) {
@@ -517,3 +518,5 @@ func (r *Route) CompareHops(routes []Route) (int, bool) {
 	}
 	return -1, false
 }
+
+/* --------------------------------------------------------------------- */

@@ -187,6 +187,9 @@ type MissionController interface {
 	// payment from fromNode along edge.
 	GetProbability(fromNode, toNode route.Vertex,
 		amt lnwire.MilliSatoshi) float64
+
+	GetRoutesCacheOfTarget(target route.Vertex) (*RoutesResult, error)
+
 }
 
 // FeeSchema is the set fee configuration for a Lightning Node on the network.
@@ -1473,6 +1476,102 @@ func (r *ChannelRouter) FindRoute(source, target route.Vertex,
 
 	return route, nil
 }
+
+/* ---------------------------------------------------------------- */
+// find Routes in routesCache
+func findRoutesInCache(r *ChannelRouter, target route.Vertex,
+	amt lnwire.MilliSatoshi, restrictions *RestrictParams) (*[]route.Route, error) {
+	// 获取target的routesCache
+	routesResult, err := r.cfg.MissionControl.GetRoutesCacheOfTarget(target)
+	if err != nil {
+		return nil, err
+	}
+
+	var routes []route.Route
+	singleRouteIndex := -1
+	singleRoutePro := 0.0
+
+	type SpareRoutes struct {
+		route route.Route
+		probability float64
+	}
+	var spareRoutes []SpareRoutes
+
+
+	// 遍历其路由集，查找符合restrictions且probability最高的路由
+	for index, route := range routesResult.routes {
+		// 判断当前route是否满足FeeLimit和CltvLimit
+		totalFee := route.TotalFees()
+		if totalFee > restrictions.FeeLimit || route.TotalTimeLock > restrictions.CltvLimit {
+			continue
+		}
+		// 若restrictions.LastHop存在，则检查
+		if restrictions.LastHop != nil {
+			hop := route.Hops[len(route.Hops) - 2]
+			if hop.PubKeyBytes != *restrictions.LastHop {
+				continue
+			}
+		}
+		// amt处理
+		amtToReceive := routesResult.totalAmt - totalFee
+		curPro := caculateProOfSingleRoute(r, route)
+		if amtToReceive < amt {
+			spareRoutes = append(spareRoutes, SpareRoutes{route, curPro})
+		} else {
+			// 当前route即可满足支付,选取probability更大的route
+			if curPro > singleRoutePro {
+				singleRoutePro = curPro
+				singleRouteIndex = index
+			}
+		}
+	}
+
+	if singleRouteIndex != -1 {
+		routes = append(routes, routesResult.routes[singleRouteIndex])
+		return &routes, nil
+	}
+
+
+	var curTotalAmt lnwire.MilliSatoshi
+	var curTotalFee lnwire.MilliSatoshi
+	var curTotalCltvLimit uint32
+	// 对spareRoutes按probability排序
+	for i := 0; i < len(spareRoutes) ; i++ {
+		for j := i + 1; j < len(spareRoutes); j++ {
+			if spareRoutes[j].probability > spareRoutes[i].probability {
+				temp := spareRoutes[j]
+				spareRoutes[j] = spareRoutes[i]
+				spareRoutes[i] = temp
+			}
+		}
+		routes = append(routes, spareRoutes[i].route)
+		curTotalAmt += spareRoutes[i].route.TotalAmount - spareRoutes[i].route.TotalFees()
+		curTotalFee += spareRoutes[i].route.TotalFees()
+		curTotalCltvLimit += spareRoutes[i].route.TotalTimeLock
+		if curTotalFee > restrictions.FeeLimit || curTotalCltvLimit > restrictions.CltvLimit {
+			return nil, errors.New("no suitable routes for target in cache")
+		}
+		if curTotalAmt > amt {
+			break
+		}
+	}
+
+	return &routes, nil
+}
+
+// 计算route的概率
+func caculateProOfSingleRoute(r *ChannelRouter, route route.Route) float64{
+	fromNode := route.SourcePubKey
+	routePro := 1.0
+	for _, hop := range route.Hops {
+		toNode := hop.PubKeyBytes
+		routePro *= r.cfg.MissionControl.GetProbability(fromNode, toNode, hop.AmtToForward)
+		fromNode = toNode
+	}
+	return routePro
+}
+/* ---------------------------------------------------------------- */
+
 
 // generateNewSessionKey generates a new ephemeral private key to be used for a
 // payment attempt.
